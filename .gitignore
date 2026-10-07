@@ -1,0 +1,17 @@
+# Dados pessoais (banco SQLite) - nunca versionar
+dados/
+*.db
+*.db-journal
+
+# Importação da planilha pessoal (uso local)
+importar_planilha.py
+
+# Python
+__pycache__/
+*.pyc
+
+# Editores e sistema
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

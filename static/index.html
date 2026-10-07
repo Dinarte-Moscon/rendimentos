@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rendimentos</title>
+<script>
+  // aplica tema e modo antes de desenhar a página (evita piscar)
+  (function () {
+    var p = "grafite", m = "";
+    try { p = localStorage.getItem("paleta") || p; m = localStorage.getItem("modo") || ""; } catch (e) {}
+    var escuro = m ? m === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.dataset.paleta = p;
+    document.documentElement.dataset.modo = escuro ? "dark" : "light";
+    try { if (localStorage.getItem("menu") === "recolhido") document.documentElement.classList.add("menu-recolhido"); } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="/style.css">
+<script src="/vendor/chart.umd.min.js"></script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-painel" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-lancamento" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 13v5M9.5 15.5h5"/></symbol>
+  <symbol id="i-movimentos" viewBox="0 0 24 24"><path d="M8 3 4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4"/></symbol>
+  <symbol id="i-projecao" viewBox="0 0 24 24"><path d="M22 7 13.5 15.5l-5-5L2 17"/><path d="M16 7h6v6"/></symbol>
+  <symbol id="i-aplicacoes" viewBox="0 0 24 24"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v3"/><path d="M3 5v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M21 12h-4a2 2 0 0 0 0 4h4z"/></symbol>
+  <symbol id="i-config" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol>
+  <symbol id="i-ajuda" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.6 2.6 0 0 1 5 .8c0 1.7-2.5 2.3-2.5 3.8M12 17h.01"/></symbol>
+  <symbol id="i-recolher" viewBox="0 0 24 24"><path d="m11 17-5-5 5-5M18 17l-5-5 5-5"/></symbol>
+  <symbol id="i-logo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14.5 11 11.5l2 2 3.5-4"/><path d="M14 9.5h2.5V12"/></symbol>
+</svg>
+
+<aside class="lateral">
+  <div class="marca"><svg class="ic"><use href="#i-logo"/></svg><span class="rot">Rendimentos</span></div>
+  <nav class="abas">
+    <button data-aba="painel" title="Painel"><svg class="ic"><use href="#i-painel"/></svg><span class="rot">Painel</span></button>
+    <button data-aba="lancamento" title="Lançamento diário"><svg class="ic"><use href="#i-lancamento"/></svg><span class="rot">Lançamento diário</span></button>
+    <button data-aba="movimentos" title="Aportes e resgates"><svg class="ic"><use href="#i-movimentos"/></svg><span class="rot">Aportes e resgates</span></button>
+    <button data-aba="projecao" title="Projeção"><svg class="ic"><use href="#i-projecao"/></svg><span class="rot">Projeção</span></button>
+    <button data-aba="aplicacoes" title="Aplicações"><svg class="ic"><use href="#i-aplicacoes"/></svg><span class="rot">Aplicações</span></button>
+    <button data-aba="config" title="Configurações"><svg class="ic"><use href="#i-config"/></svg><span class="rot">Configurações</span></button>
+    <button data-aba="ajuda" title="Como usar"><svg class="ic"><use href="#i-ajuda"/></svg><span class="rot">Como usar</span></button>
+  </nav>
+  <div class="aparencia rot">
+    <label>Tema
+      <select id="paleta">
+        <option value="grafite">Grafite + azul</option>
+        <option value="noir">Noir + dourado</option>
+        <option value="ardosia">Ardósia + menta</option>
+      </select>
+    </label>
+    <label>Modo
+      <select id="modo">
+        <option value="">Do sistema</option>
+        <option value="light">Claro</option>
+        <option value="dark">Escuro</option>
+      </select>
+    </label>
+  </div>
+  <button class="recolher" id="recolher" title="Recolher menu"><svg class="ic"><use href="#i-recolher"/></svg><span class="rot">Recolher</span></button>
+</aside>
+
+<div class="conteudo">
+<header class="resumo">
+  <h1 id="titulo">Painel</h1>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main>
+<!-- ============================== PAINEL -->
+<section class="aba" id="aba-painel">
+  <div class="cartao boas-vindas" id="boas-vindas" hidden>
+    <h2>Bem-vindo ao Rendimentos</h2>
+    <p class="muted">O painel aparece assim que houver dados. Para começar:</p>
+    <ol class="passos">
+      <li>Cadastre seus investimentos em <button class="link" data-aba="aplicacoes">Aplicações</button>.</li>
+      <li>Informe o saldo atual de cada um em <button class="link" data-aba="lancamento">Lançamento diário</button>.</li>
+      <li>Dúvidas? Veja o passo a passo em <button class="link" data-aba="ajuda">Como usar</button>.</li>
+    </ol>
+  </div>
+  <div class="filtros">
+    <label class="campo-inline">Aplicação <select id="filtro-app"><option value="todas">Todas</option></select></label>
+    <div class="segmentado" id="periodo" role="group" aria-label="Período dos gráficos">
+      <button data-periodo="12m">12 meses</button>
+      <button data-periodo="ano">Ano atual</button>
+      <button data-periodo="meta">Até a meta</button>
+      <button data-periodo="tudo">Tudo</button>
+    </div>
+  </div>
+  <div class="alerta" id="aviso-selic" hidden style="margin-bottom:16px">Nenhuma Selic cadastrada: a projeção está considerando taxa zero. Vá em <button class="link" data-aba="projecao">Projeção</button> e clique em <b>Atualizar Selic (Banco Central)</b>.</div>
+  <div class="kpis" id="kpis">
+    <div class="kpi esqueleto"></div><div class="kpi esqueleto"></div><div class="kpi esqueleto"></div><div class="kpi esqueleto"></div><div class="kpi esqueleto"></div>
+  </div>
+  <div class="cartao">
+    <div class="cartao-cab">
+      <h2>Patrimônio</h2>
+      <div class="legenda" id="leg-patrimonio"></div>
+    </div>
+    <div class="grafico alto"><canvas id="g-patrimonio" aria-label="Gráfico de patrimônio realizado e projetado"></canvas></div>
+  </div>
+  <div class="grade g2">
+    <div class="cartao">
+      <div class="cartao-cab">
+        <h2>Rendimento mensal</h2>
+        <div class="legenda">
+          <span class="bloco" style="--cor: var(--s1)">Realizado</span>
+          <span class="bloco" style="--cor: var(--s1-soft)">Projetado</span>
+          <span class="tracejado" style="--cor: var(--text-muted)">CDI 100%</span>
+        </div>
+      </div>
+      <div class="grafico"><canvas id="g-mensal"></canvas></div>
+    </div>
+    <div class="cartao">
+      <div class="cartao-cab">
+        <h2 id="t-diario">Rendimento por lançamento</h2>
+        <div class="legenda" id="leg-diario"></div>
+      </div>
+      <div class="grafico"><canvas id="g-diario"></canvas></div>
+    </div>
+  </div>
+  <div class="cartao">
+    <div class="cartao-cab"><h2>Distribuição atual</h2><span class="muted" id="dist-total"></span></div>
+    <div class="grafico barra-unica"><canvas id="g-distrib" aria-label="Distribuição do patrimônio por aplicação"></canvas></div>
+    <div class="dist-legenda" id="t-distrib"></div>
+  </div>
+  <div class="cartao">
+    <div class="cartao-cab">
+      <h2>Consolidado por ano</h2>
+      <div class="barra-acoes">
+        <label class="muted chk"><input type="checkbox" id="so-realizado"> só realizados</label>
+        <button class="link" id="abrir-anos">abrir todos</button>
+        <button class="link" id="fechar-anos">fechar todos</button>
+      </div>
+    </div>
+    <div class="rolagem"><table id="t-consolidado" class="tabela"></table></div>
+  </div>
+</section>
+
+<!-- ============================== LANÇAMENTO -->
+<section class="aba" id="aba-lancamento">
+  <div class="barra-dia">
+    <button class="btn icone" id="dia-ant" title="Dia anterior">◀</button>
+    <input type="date" id="lanc-data">
+    <button class="btn icone" id="dia-prox" title="Próximo dia">▶</button>
+    <button class="btn" id="dia-hoje">Hoje</button>
+    <span id="lanc-util" class="muted"></span>
+    <span class="espaco"></span>
+    <span class="muted dica">Enter: próximo campo · Ctrl+S: salvar</span>
+    <button class="btn primario" id="lanc-salvar">Salvar saldos</button>
+  </div>
+  <div class="cards-lanc" id="cards-lanc"></div>
+  <div class="grade g2">
+    <div class="cartao">
+      <div class="cartao-cab"><h2>Aporte ou resgate nesta data</h2></div>
+      <div class="form" id="form-mov-dia">
+        <label>Aplicação <select name="aplicacao_id" class="sel-app-ativa"></select></label>
+        <label>Tipo <select name="tipo"><option value="1">Aporte</option><option value="-1">Resgate</option></select></label>
+        <label>Valor <input name="valor" class="valor" inputmode="decimal"></label>
+        <label>Descrição <input name="descricao"></label>
+        <button class="btn primario" id="mov-dia-add">Registrar</button>
+      </div>
+      <table id="t-mov-dia" class="tabela" style="margin-top:12px"></table>
+    </div>
+    <div class="cartao">
+      <div class="cartao-cab"><h2>Últimos lançamentos (45 dias)</h2></div>
+      <div class="rolagem" style="max-height:360px"><table id="t-historico" class="tabela"></table></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== MOVIMENTOS -->
+<section class="aba" id="aba-movimentos">
+  <div class="cartao">
+    <div class="cartao-cab"><h2>Registrar aporte ou resgate</h2></div>
+    <div class="form" id="form-mov">
+      <input type="hidden" name="id">
+      <label>Data <input type="date" name="data"></label>
+      <label>Aplicação <select name="aplicacao_id" class="sel-app"></select></label>
+      <label>Tipo <select name="tipo"><option value="1">Aporte</option><option value="-1">Resgate</option></select></label>
+      <label>Valor <input name="valor" class="valor" inputmode="decimal"></label>
+      <label>Descrição <input name="descricao"></label>
+      <button class="btn primario" id="mov-salvar">Salvar</button>
+      <button class="btn" id="mov-limpar">Novo</button>
+    </div>
+  </div>
+  <div class="cartao">
+    <div class="cartao-cab">
+      <h2>Movimentos</h2>
+      <select id="mov-filtro"><option value="">Todas as aplicações</option></select>
+    </div>
+    <div class="rolagem"><table id="t-mov" class="tabela"></table></div>
+  </div>
+</section>
+
+<!-- ============================== PROJEÇÃO -->
+<section class="aba" id="aba-projecao">
+  <div class="grade g2">
+    <div class="cartao">
+      <div class="cartao-cab">
+        <h2>Selic</h2>
+        <div class="legenda">
+          <span style="--cor: var(--s1)">Histórico</span>
+          <span class="tracejado" style="--cor: var(--s2)">Cenário futuro</span>
+        </div>
+      </div>
+      <div class="barra-acoes" style="margin-bottom:12px">
+        <button class="btn primario" id="selic-bcb">Atualizar Selic (Banco Central)</button>
+        <button class="btn" id="selic-focus">Aplicar expectativas do Focus</button>
+        <button class="btn" id="selic-limpar">Limpar cenário futuro</button>
+      </div>
+      <div class="grafico"><canvas id="g-selic"></canvas></div>
+      <p class="muted nota">
+        <b>Atualizar Selic</b> busca o histórico oficial da meta Selic até hoje.
+        <b>Expectativas do Focus</b> monta o cenário futuro a partir da mediana do mercado para o fim de cada ano.
+        Sem cenário futuro, a última taxa vale até o fim da projeção.
+      </p>
+    </div>
+    <div class="cartao">
+      <div class="cartao-cab"><h2>Vigências da Selic</h2></div>
+      <div class="form" id="form-selic">
+        <label>A partir de <input type="date" name="vigencia"></label>
+        <label>Meta Selic (% a.a.) <input name="taxa_aa" class="valor curto" inputmode="decimal"></label>
+        <button class="btn primario" id="selic-add">Incluir</button>
+      </div>
+      <div class="rolagem" style="max-height:340px; margin-top:12px"><table id="t-selic" class="tabela"></table></div>
+    </div>
+  </div>
+  <div class="cartao">
+    <div class="cartao-cab"><h2>Aportes planejados</h2></div>
+    <p class="muted nota" style="margin-top:0">Usados nos meses futuros da projeção. Valor zero remove os meses do intervalo. No mês corrente, o aporte planejado só entra se ainda não houver aporte/resgate registrado.</p>
+    <div class="form" id="form-plan">
+      <label>Aplicação <select name="aplicacao_id" class="sel-app-ativa"></select></label>
+      <label>De <input type="month" name="de"></label>
+      <label>Até <input type="month" name="ate"></label>
+      <label>Valor mensal <input name="valor" class="valor" inputmode="decimal"></label>
+      <label>Somente nos meses <span class="meses-sel" id="plan-meses"></span></label>
+      <button class="btn primario" id="plan-salvar">Aplicar</button>
+    </div>
+    <div class="rolagem" style="margin-top:12px; max-height:360px"><table id="t-plan" class="tabela"></table></div>
+  </div>
+</section>
+
+<!-- ============================== APLICAÇÕES -->
+<section class="aba" id="aba-aplicacoes">
+  <div class="cartao">
+    <div class="cartao-cab"><h2>Aplicação</h2></div>
+    <div class="form" id="form-app">
+      <input type="hidden" name="id">
+      <label>Nome <input name="nome" style="width:220px"></label>
+      <label>Instituição <input name="instituicao"></label>
+      <label>Rendimento
+        <select name="tipo">
+          <option value="CDI">% do CDI</option>
+          <option value="SELIC">Tesouro Selic (% da Selic)</option>
+          <option value="PRE">Prefixado (% a.a.)</option>
+          <option value="IPCA">IPCA + (% a.a.)</option>
+          <option value="MENSAL">Taxa mensal fixa (% a.m.)</option>
+        </select>
+      </label>
+      <label>Taxa <input name="taxa" class="valor curto" inputmode="decimal"></label>
+      <label>Encerrada em <input type="date" name="data_encerramento"></label>
+      <label class="chk"><input type="checkbox" name="ativa" checked> Ativa</label>
+      <button class="btn primario" id="app-salvar">Salvar</button>
+      <button class="btn" id="app-limpar">Nova</button>
+    </div>
+  </div>
+  <div class="cartao"><table id="t-apps" class="tabela"></table></div>
+</section>
+
+<!-- ============================== CONFIGURAÇÕES -->
+<section class="aba" id="aba-config">
+  <div class="grade g2">
+    <div class="cartao">
+      <div class="cartao-cab"><h2>Parâmetros</h2></div>
+      <div class="form coluna" id="form-cfg">
+        <label>Início do acompanhamento <input type="date" name="data_inicio"></label>
+        <label>Fim da projeção (meta) <input type="date" name="data_meta"></label>
+        <label>Diferença do CDI para a meta Selic (p.p.) <input name="spread_cdi" class="valor curto" inputmode="decimal"></label>
+        <label>IPCA projetado (% a.a.) <input name="ipca_projetado" class="valor curto" inputmode="decimal"></label>
+        <label>Faixa de cenários no painel: Selic futura ± (p.p.) <input name="cenario_variacao" class="valor curto" inputmode="decimal"></label>
+        <button class="btn primario" id="cfg-salvar">Salvar parâmetros</button>
+      </div>
+      <p class="muted nota">O CDI costuma ficar 0,10 p.p. abaixo da meta Selic. O rendimento projetado é calculado por dia útil (base 252), desconsiderando feriados. Use zero na faixa de cenários para ocultá-la.</p>
+    </div>
+    <div class="cartao">
+      <div class="cartao-cab">
+        <h2>Feriados</h2>
+        <select id="fer-ano"></select>
+      </div>
+      <div class="form" id="form-fer">
+        <label>Data <input type="date" name="data"></label>
+        <label>Descrição <input name="descricao"></label>
+        <button class="btn primario" id="fer-add">Incluir</button>
+      </div>
+      <div class="rolagem" style="max-height:340px; margin-top:12px"><table id="t-fer" class="tabela"></table></div>
+    </div>
+  </div>
+</section>
+<!-- ============================== COMO USAR -->
+<section class="aba" id="aba-ajuda">
+  <div class="ajuda">
+    <nav class="ajuda-indice cartao" aria-label="Índice do tutorial">
+      <h2>Neste guia</h2>
+      <ol>
+        <li><a href="#aj-ideia">A ideia em 1 minuto</a></li>
+        <li><a href="#aj-inicio">Primeiros passos</a></li>
+        <li><a href="#aj-rotina">Rotina diária</a></li>
+        <li><a href="#aj-movimentos">Aportes e resgates</a></li>
+        <li><a href="#aj-painel">Lendo o painel</a></li>
+        <li><a href="#aj-projecao">Projeção e Selic</a></li>
+        <li><a href="#aj-calculos">Como os cálculos funcionam</a></li>
+        <li><a href="#aj-config">Configurações</a></li>
+        <li><a href="#aj-duvidas">Dúvidas frequentes</a></li>
+      </ol>
+    </nav>
+
+    <div class="ajuda-corpo">
+      <article class="cartao" id="aj-ideia">
+        <h2>1. A ideia em 1 minuto</h2>
+        <p>Você só precisa informar <b>o saldo</b> de cada aplicação, do jeito que aparece no app do banco ou da corretora. O sistema calcula o resto:</p>
+        <div class="formula">Rendimento = saldo de hoje − último saldo informado − aportes/resgates entre as duas datas</div>
+        <p>Por isso existem só dois tipos de lançamento:</p>
+        <table class="tabela ajuda-tab">
+          <tr><th>O que aconteceu</th><th>Onde lançar</th></tr>
+          <tr><td>Consultei quanto tenho aplicado</td><td><button class="link" data-aba="lancamento">Lançamento diário</button> → saldo do dia</td></tr>
+          <tr><td>Coloquei dinheiro (aporte)</td><td><button class="link" data-aba="movimentos">Aportes e resgates</button> → tipo <i>Aporte</i></td></tr>
+          <tr><td>Tirei dinheiro (resgate)</td><td><button class="link" data-aba="movimentos">Aportes e resgates</button> → tipo <i>Resgate</i></td></tr>
+          <tr><td>Abri ou encerrei uma aplicação</td><td><button class="link" data-aba="aplicacoes">Aplicações</button></td></tr>
+          <tr><td>Quero planejar aportes futuros ou mudar a Selic esperada</td><td><button class="link" data-aba="projecao">Projeção</button></td></tr>
+        </table>
+        <p class="dica-box">Os juros <b>não</b> são lançados como aporte. Eles aparecem sozinhos na diferença entre os saldos.</p>
+      </article>
+
+      <article class="cartao" id="aj-inicio">
+        <h2>2. Primeiros passos</h2>
+        <ol class="passos">
+          <li><b>Cadastre as aplicações</b> em <button class="link" data-aba="aplicacoes">Aplicações</button>. Informe nome, instituição e como ela rende:
+            <ul>
+              <li><b>% do CDI</b>: CDBs, caixinhas e contas remuneradas. Ex.: 100, 110, 121.</li>
+              <li><b>Tesouro Selic</b>: use 100 (% da Selic).</li>
+              <li><b>Prefixado</b>: a taxa ao ano. Ex.: 12,5.</li>
+              <li><b>IPCA +</b>: só a parte fixa. Ex.: para IPCA + 6%, informe 6.</li>
+              <li><b>Taxa mensal fixa</b>: rendimento combinado por mês. Ex.: 1 para 1% a.m.</li>
+            </ul>
+          </li>
+          <li><b>Informe o saldo inicial</b> de cada aplicação em <button class="link" data-aba="lancamento">Lançamento diário</button>. Use a data em que consultou o valor. Ele é o ponto de partida dos cálculos.</li>
+          <li><b>Busque a Selic</b> em <button class="link" data-aba="projecao">Projeção</button> → <i>Atualizar Selic (Banco Central)</i>. Sem esse passo, a projeção considera taxa zero.</li>
+          <li><b>(Opcional)</b> Cadastre os <b>aportes planejados</b> em Projeção e ajuste a <b>data da meta</b> em <button class="link" data-aba="config">Configurações</button>.</li>
+        </ol>
+      </article>
+
+      <article class="cartao" id="aj-rotina">
+        <h2>3. Rotina diária</h2>
+        <ol class="passos">
+          <li>Abra <button class="link" data-aba="lancamento">Lançamento diário</button>. A data já vem com hoje; use ◀ ▶ para lançar outro dia.</li>
+          <li>Em cada cartão, digite o <b>saldo atual</b> que aparece no app. Pode usar vírgula ou ponto (ex.: <code>15.432,10</code>).</li>
+          <li>O <b>rendimento</b> aparece enquanto você digita, junto com o valor por dia útil.</li>
+          <li>Salve com o botão <b>Salvar saldos</b> ou com <kbd>Ctrl</kbd>+<kbd>S</kbd>. A tecla <kbd>Enter</kbd> passa para o próximo cartão.</li>
+        </ol>
+        <dl class="glossario">
+          <dt>Último saldo</dt><dd>O lançamento anterior daquela aplicação, usado como base do cálculo.</dd>
+          <dt>Aportes/resgates desde então</dt><dd>Movimentos registrados entre o último saldo e o dia lançado. São descontados do rendimento.</dd>
+          <dt>Saldo estimado</dt><dd>Quanto o sistema espera que você tenha, aplicando a taxa da aplicação. Serve só de referência.</dd>
+          <dt>✓ salvo / não salvo</dt><dd>Indica se o valor na tela já está gravado.</dd>
+          <dt>⚠ Aviso</dt><dd>Aparece quando o rendimento fica negativo ou foge muito da média recente. Normalmente é erro de digitação ou um aporte/resgate que não foi registrado.</dd>
+        </dl>
+        <p class="dica-box">Não precisa lançar todo dia. Se você pular dias, o rendimento do período inteiro aparece no próximo lançamento, dividido pelos dias úteis. Para apagar um saldo lançado, deixe o campo vazio e salve.</p>
+      </article>
+
+      <article class="cartao" id="aj-movimentos">
+        <h2>4. Aportes e resgates</h2>
+        <p>Registre todo dinheiro que <b>entra</b> ou <b>sai</b> da aplicação. Se não registrar, o sistema entende que ele foi rendimento (ou prejuízo).</p>
+        <ul>
+          <li>Para registrar no mesmo dia do saldo, use o quadro <i>Aporte ou resgate nesta data</i>, dentro de <button class="link" data-aba="lancamento">Lançamento diário</button>.</li>
+          <li>Para datas passadas, para corrigir ou para ver o histórico, use a aba <button class="link" data-aba="movimentos">Aportes e resgates</button>.</li>
+          <li>O valor é sempre digitado positivo; o campo <i>Tipo</i> define se é aporte ou resgate.</li>
+          <li><b>Mesmo dia:</b> se o aporte e o saldo têm a mesma data, o sistema considera que o saldo informado <b>já inclui</b> o aporte.</li>
+          <li><b>Transferência entre aplicações:</b> lance um resgate na aplicação de origem e um aporte na de destino.</li>
+        </ul>
+      </article>
+
+      <article class="cartao" id="aj-painel">
+        <h2>5. Lendo o painel</h2>
+        <dl class="glossario">
+          <dt>Patrimônio</dt><dd>Soma dos últimos saldos informados, com a variação desde o fim do mês anterior. Essa variação inclui aportes e resgates.</dd>
+          <dt>Último lançamento</dt><dd>Rendimento do lançamento mais recente e quanto isso dá por dia útil.</dd>
+          <dt>Mês até agora</dt><dd>Quanto já rendeu no mês, até o último saldo lançado. A barra mostra quantos dias úteis do mês já passaram.</dd>
+          <dt>Projeção do mês</dt><dd>O realizado até agora somado ao restante do mês estimado pela taxa. "No ritmo atual" usa a sua média por dia útil.</dd>
+          <dt>Meta</dt><dd>Patrimônio previsto na data final da projeção e quanto dele você já tem.</dd>
+          <dt>Gráfico de patrimônio</dt><dd>A linha cheia é o realizado e a tracejada o projetado. A faixa sombreada mostra o resultado se a Selic futura ficar acima ou abaixo do previsto. A outra linha é o total que você aportou: a distância entre ela e o patrimônio são os juros ganhos. ▲▼ marcam aportes e resgates relevantes.</dd>
+          <dt>Rendimento mensal</dt><dd>As barras escuras são o realizado e as claras o projetado. A linha tracejada é quanto o CDI 100% teria rendido no mesmo mês, para comparar.</dd>
+          <dt>Consolidado por ano</dt><dd>Clique no ano para abrir ou fechar os meses. <b>% CDI</b> compara o rendimento do mês com o CDI do período: 100% significa que rendeu igual ao CDI.</dd>
+        </dl>
+        <p class="dica-box">O filtro <b>Aplicação</b> mostra o painel de uma aplicação só. Os botões de período (12 meses, ano atual…) mudam o intervalo dos gráficos.</p>
+      </article>
+
+      <article class="cartao" id="aj-projecao">
+        <h2>6. Projeção e Selic</h2>
+        <ul>
+          <li><b>Atualizar Selic (Banco Central)</b>: traz o histórico oficial da meta Selic até hoje. Faça isso depois de cada reunião do Copom (a cada ~45 dias).</li>
+          <li><b>Aplicar expectativas do Focus</b>: monta a Selic futura com a previsão do mercado (boletim Focus do Banco Central) para o fim de cada ano. Substitui o cenário futuro anterior.</li>
+          <li><b>Vigências manuais</b>: informe uma data e a taxa para criar o seu próprio cenário (ex.: "a partir de 01/03, 12%"). Cada taxa vale até a próxima.</li>
+          <li><b>Limpar cenário futuro</b>: apaga as taxas futuras; a taxa atual passa a valer até o fim da projeção.</li>
+          <li><b>Aportes planejados</b>: escolha a aplicação, o intervalo de meses e o valor. Marque meses específicos (ex.: só nov e dez, para o 13º). Valor zero remove o planejamento.</li>
+        </ul>
+        <p class="dica-box">A projeção é uma estimativa: usa a taxa de cada aplicação e a Selic prevista, e considera os valores <b>brutos</b> (antes do imposto de renda).</p>
+      </article>
+
+      <article class="cartao" id="aj-calculos">
+        <h2>7. Como os cálculos funcionam</h2>
+        <dl class="glossario">
+          <dt>Mês fechado</dt><dd>Rendimento = saldo final do mês − saldo final do mês anterior − aportes do mês (resgates entram negativos).</dd>
+          <dt>Mês atual</dt><dd>Realizado até o último saldo informado; o restante do mês é projetado.</dd>
+          <dt>Meses futuros</dt><dd>(saldo anterior + aporte planejado) × rendimento do mês.</dd>
+          <dt>Rendimento do mês</dt><dd>Calculado dia útil a dia útil (base de 252 dias úteis por ano), usando a Selic de cada dia e descontando fins de semana e feriados.</dd>
+          <dt>CDI</dt><dd>Considerado igual à meta Selic menos uma pequena diferença (0,10 ponto por padrão, ajustável em Configurações).</dd>
+          <dt>% do mês</dt><dd>Rendimento ÷ (saldo anterior + aportes do mês).</dd>
+        </dl>
+      </article>
+
+      <article class="cartao" id="aj-config">
+        <h2>8. Configurações</h2>
+        <ul>
+          <li><b>Início do acompanhamento</b>: primeiro mês exibido no painel.</li>
+          <li><b>Fim da projeção (meta)</b>: até quando a projeção é calculada.</li>
+          <li><b>Diferença do CDI para a Selic</b>: use 0 para considerar CDI = Selic.</li>
+          <li><b>IPCA projetado</b>: inflação anual usada nas aplicações IPCA +.</li>
+          <li><b>Faixa de cenários</b>: quanto a Selic futura pode variar para cima e para baixo na faixa do gráfico de patrimônio (0 oculta a faixa).</li>
+          <li><b>Feriados</b>: os nacionais já vêm cadastrados até 2040. Inclua feriados locais se a sua instituição não abrir.</li>
+          <li><b>Tema e modo</b>: no rodapé do menu lateral.</li>
+        </ul>
+      </article>
+
+      <article class="cartao" id="aj-duvidas">
+        <h2>9. Dúvidas frequentes</h2>
+        <details><summary>O rendimento do dia veio muito alto ou negativo.</summary>
+          <p>Quase sempre é um aporte ou resgate que não foi registrado, ou um saldo digitado errado. Registre o movimento na data correta e o rendimento é recalculado na hora.</p></details>
+        <details><summary>Encerrei uma aplicação. O que faço?</summary>
+          <p>Lance o resgate total, informe saldo 0 no último dia e, em Aplicações, desmarque <i>Ativa</i> e preencha <i>Encerrada em</i>. O histórico continua no painel.</p></details>
+        <details><summary>Posso excluir uma aplicação?</summary>
+          <p>Só se ela não tiver nenhum lançamento. Com histórico, marque como encerrada.</p></details>
+        <details><summary>O botão do Focus deu erro.</summary>
+          <p>O serviço do Banco Central às vezes fica fora do ar. Quando dá erro nada é alterado; tente mais tarde.</p></details>
+        <details><summary>O saldo do Tesouro às vezes cai de um dia para o outro.</summary>
+          <p>O saldo do Tesouro é atualizado pelo preço de mercado, então pequenas quedas pontuais são normais e se compensam nos dias seguintes.</p></details>
+        <details><summary>Onde ficam meus dados? Como faço backup?</summary>
+          <p>Tudo fica no arquivo <code>dados\rendimentos.db</code>, na pasta do sistema, somente no seu computador. Para backup, copie esse arquivo com o sistema fechado.</p></details>
+      </article>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="/app.js"></script>
+</body>
+</html>
